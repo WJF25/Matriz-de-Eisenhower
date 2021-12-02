@@ -56,15 +56,16 @@ def limitation(kwargs, method="post"):
 def verify_keys(kwargs, option, method="post"):
     
     options = {
-        "task":{'name','importance','urgency','description', 'duration'},
+        "task":{'name','importance','urgency','description', 'duration', 'categories'},
         "category":{'cat_name', 'cat_description'}
+        
     }
 
     keys = set(kwargs.keys())
 
     if method == "post":
         if not options[option].issubset(keys):
-            error = list(options[option] - keys)
+            error = list(keys - options[option])
             
             raise WrongKeyError({"wrong_keys_sent":error, "available_keys":list(options[option])})
                     
