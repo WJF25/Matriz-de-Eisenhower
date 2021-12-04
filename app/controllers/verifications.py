@@ -57,7 +57,7 @@ def verify_keys(kwargs, option, method="post"):
     
     options = {
         "task":{'name','importance','urgency','description', 'duration', 'categories'},
-        "category":{'cat_name', 'cat_description'}
+        "category":{'name', 'description'}
         
     }
 

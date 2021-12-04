@@ -7,19 +7,19 @@ from dataclasses import dataclass
 class CategoriesModel(db.Model):
     __tablename__ = 'categories'
 
-    category_id: int
-    cat_name: str
-    cat_description: str
+    id: int
+    name: str
+    description: str
     tasks: list
 
-    category_id = db.Column(db.Integer, primary_key=True)
-    cat_name = db.Column(db.String(100), nullable=False, unique=True)
-    cat_description = db.Column(db.String(200))
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    description = db.Column(db.String(200))
 
     tasks = db.relationship('TaskModel', secondary=tasks_categories_table, backref="categories")
 
     def __iter__(self):
-        yield 'category_id', self.category_id
-        yield 'cat_name', self.cat_name
-        yield 'cat_description', self.cat_description
+        yield 'id', self.id
+        yield 'name', self.name
+        yield 'description', self.description
         yield 'tasks', self.tasks

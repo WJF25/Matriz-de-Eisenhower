@@ -17,14 +17,14 @@ def create_task():
         return jsonify(e.value), 400
     except WrongOptionError as f:
         return jsonify(f.value), 404
-    eisen = session.query(EisenhowerModel).filter_by(eisen_type=option).first()
+    eisen = session.query(EisenhowerModel).filter_by(type=option).first()
     
 
     category = data.pop('categories')
     
     
 
-    data['eisenhower_id'] = eisen.eisenhower_id
+    data['eisenhower_id'] = eisen.id if eisen.id else 1
 
     try:
         task = TaskModel(**data)
@@ -37,20 +37,23 @@ def create_task():
 
     for categ in category:
         
-        a = session.query(CategoriesModel).filter_by(cat_name=categ['cat_name']).first()        
+        a = session.query(CategoriesModel).filter_by(name=categ['name']).first()
+        
         if a is None:
             new_cag = CategoriesModel(**categ)
             new_cag.tasks.append(task)
             session.add(new_cag)
             session.commit()
         else:
+            
             a.tasks.append(task)
-            t = dict(a)
-            session.query(CategoriesModel).filter_by(cat_name=categ['cat_name']).update(t)
+            session.add(a)            
             session.commit()
+        
+            
     
     resp = dict(task)
-    resp['eisenhower_classification'] = eisen.eisen_type
+    resp['eisenhower_classification'] = eisen.type
     resp['category'] = category
     
     del resp['importance']
@@ -75,23 +78,23 @@ def update_tasks(task_id):
         resp = dict(old)
         resp.update(data)
 
-        updated = session.query(TaskModel).filter_by(task_id=task_id).update(resp)
+        updated = session.query(TaskModel).filter_by(id=task_id).update(resp)
         session.commit()  
     except TypeError as e:
         return jsonify({"error": "Task not found"}), 404
     
-    new_updated = session.query(TaskModel).filter_by(task_id=task_id).first()
+    new_updated = session.query(TaskModel).filter_by(id=task_id).first()
 
     new_resp = dict(new_updated)
     
     new_eisen = limitation(new_resp)
 
-    new_date = session.query(EisenhowerModel).filter_by(eisen_type=new_eisen).first()
+    new_date = session.query(EisenhowerModel).filter_by(type=new_eisen).first()
 
-    session.query(TaskModel).filter_by(task_id=task_id).update({"eisenhower_id": new_date.eisenhower_id})
+    session.query(TaskModel).filter_by(id=task_id).update({"eisenhower_id": new_date.id})
     session.commit()
     
-    new_resp['eisenhower_classification'] = new_date.eisen_type
+    new_resp['eisenhower_classification'] = new_date.type
     del new_resp['importance']
     del new_resp['urgency']
     return jsonify(new_resp), 200
@@ -102,7 +105,7 @@ def delete_task(task_id):
     session = current_app.db.session
     task = TaskModel.query.get(task_id)
     if task is None:
-        return jsonify({"error": "TaskCategory not found"}), 404
+        return jsonify({"error": "Task not found"}), 404
     session.delete(task)
     session.commit()
     return jsonify({"message": "Task deleted"}), 204

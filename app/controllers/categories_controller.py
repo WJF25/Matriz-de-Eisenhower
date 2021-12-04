@@ -18,7 +18,7 @@ def create_category():
         response = dict(category)    
         del response['tasks']
 
-        return jsonify(category), 201
+        return jsonify(response), 201
     except (sqlalchemy.exc.IntegrityError ) as e:
         if type(e.orig) == psycopg2.errors.UniqueViolation:
             return jsonify({"error": "Category already exists"}), 409
@@ -31,11 +31,11 @@ def update_category_by_id(category_id):
         session = current_app.db.session
         data = request.get_json()
         verify_keys(data, "category", "patch")
-        category = session.query(CategoriesModel).filter_by(category_id=category_id).update(data)   
+        category = session.query(CategoriesModel).filter_by(id=category_id).update(data)   
         
         session.commit()
 
-        category = session.query(CategoriesModel).filter_by(category_id=category_id).first()
+        category = session.query(CategoriesModel).filter_by(id=category_id).first()
         if category is None:
             return jsonify({"error": "Category not found"}), 404
         response = dict(category)    
