@@ -65,16 +65,15 @@ def delete_category_by_id(category_id):
 def get_categories():
     session = current_app.db.session
     categories = session.query(CategoriesModel).all()
+    
     response = [dict(category) for category in categories]
-    for i in range(len(response)):
-        response[i]['tasks'] = [dict(g) for g in response[i]['tasks']]
-        if len(response[i]['tasks']) > 0:
-            for j in range(len(response[i]['tasks'])):
-                eisen = limitation(response[i]['tasks'][j])
-                del response[i]['tasks'][j]['duration']
-                del response[i]['tasks'][j]['importance']
-                del response[i]['tasks'][j]['urgency']
-                response[i]['tasks'][j]['priority'] = eisen       
+    for i in response:
+        i['tasks'] = [dict(task) for task in i['tasks']]
+        if len(i['tasks']) > 0:
+            for j in i['tasks']:
+                eisen = limitation(j)
+                del j['duration'], j['importance'], j['urgency']
+                j['priority'] = eisen       
 
     
     return jsonify(response), 200
