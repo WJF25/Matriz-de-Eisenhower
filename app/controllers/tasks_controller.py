@@ -5,6 +5,8 @@ from app.controllers.verifications import WrongKeyError, WrongOptionError, limit
 from app.models.tasks_model import TaskModel
 from app.models.categories_model import CategoriesModel
 from app.models.eisenhowers_model import EisenhowerModel
+from app.models.tasks_categories_table import tasks_categories_table
+from sqlalchemy import and_
 
 
 def create_task():
@@ -76,11 +78,30 @@ def update_tasks(task_id):
     try:
         old = TaskModel.query.get(task_id)
         resp = dict(old)
+
+        if data.get('categories', None):
+            categories = data.pop('categories')
+            
+            for categ in categories:
+                category: CategoriesModel = session.query(CategoriesModel).filter_by(name=categ['name']).first()
+                if category is None:
+                    new_cag = CategoriesModel(**categ)
+                    new_cag.tasks.append(old)
+                    session.add(new_cag)
+                    session.commit()
+                else:                    
+                        
+                    category.tasks.append(old)
+                    session.add(category)
+                    session.commit()
+                
         resp.update(data)
+        
 
         updated = session.query(TaskModel).filter_by(id=task_id).update(resp)
         session.commit()  
     except TypeError as e:
+        print(str(e))
         return jsonify({"error": "Task not found"}), 404
     
     new_updated = session.query(TaskModel).filter_by(id=task_id).first()
@@ -97,6 +118,10 @@ def update_tasks(task_id):
     new_resp['eisenhower_classification'] = new_date.type
     del new_resp['importance']
     del new_resp['urgency']
+    tasky_id = tasks_categories_table.columns.get('task_id')
+    category_task = CategoriesModel.query.select_from(tasks_categories_table).join(CategoriesModel).filter(tasky_id == task_id).all()
+    new_category = [dict(category) for category in category_task]
+    new_resp['categories'] = [category for category in new_category if category.pop('tasks', None)]
     return jsonify(new_resp), 200
 
 
@@ -109,3 +134,16 @@ def delete_task(task_id):
     session.delete(task)
     session.commit()
     return jsonify({"message": "Task deleted"}), 204
+
+
+def get_tasks():
+    session = current_app.db.session
+    all_tasks = session.query(TaskModel).all()
+    resp = [dict(task) for task in all_tasks]
+    for task in resp:
+        tasky_id = tasks_categories_table.columns.get('task_id')
+        category_task = CategoriesModel.query.select_from(tasks_categories_table).join(CategoriesModel).filter(tasky_id == task['id']).all()
+        new_category = [dict(category) for category in category_task]
+        task['categories'] = [category for category in new_category if category.pop('tasks', None)]
+    
+    return jsonify(resp), 200
