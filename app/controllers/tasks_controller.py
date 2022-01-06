@@ -197,19 +197,22 @@ def get_task_by_id(task_id):
 def get_task_by_name_or_descrip(name_or_descrip):
     session = current_app.db.session
     param: dict = dict(request.args)
-    task = session.query(TaskModel).filter(getattr(TaskModel, name_or_descrip).ilike('%' + str(param.get('text')) + '%')).all()
-    if len(task) == 0:
-        return jsonify({"error": f"No such text found on {name_or_descrip}"}), 404
+    try:
+        task = session.query(TaskModel).filter(getattr(TaskModel, name_or_descrip).ilike('%' + str(param.get('text')) + '%')).all()
+        if len(task) == 0:
+            return jsonify({"error": f"No such text found on {name_or_descrip}"}), 404
 
-    response = [dict(task) for task in task]
-    for task in response:
-        option = limitation(task)
-        eisen = session.query(EisenhowerModel).filter_by(type=option).first()
-        tasky_id = tasks_categories_table.columns.get('task_id')
-        category_task = CategoriesModel.query.select_from(tasks_categories_table).join(CategoriesModel).filter(tasky_id == task['id']).all()
-        new_category = [dict(category) for category in category_task]
-        task['eisenhower_classification'] = eisen.type
-        task['categories'] = [category for category in new_category if category.pop('tasks', None)]
-    return jsonify(response), 200
+        response = [dict(task) for task in task]
+        for task in response:
+            option = limitation(task)
+            eisen = session.query(EisenhowerModel).filter_by(type=option).first()
+            tasky_id = tasks_categories_table.columns.get('task_id')
+            category_task = CategoriesModel.query.select_from(tasks_categories_table).join(CategoriesModel).filter(tasky_id == task['id']).all()
+            new_category = [dict(category) for category in category_task]
+            task['eisenhower_classification'] = eisen.type
+            task['categories'] = [category for category in new_category if category.pop('tasks', None)]
+        return jsonify(response), 200
+    except AttributeError as e:
+        return jsonify({"error": "Allowed to search is name or description"}), 400
 
     

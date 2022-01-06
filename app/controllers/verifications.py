@@ -65,9 +65,12 @@ def verify_keys(kwargs, option, method="post"):
 
     if method == "post":
         if not options[option].issubset(keys):
-            error = list(keys - options[option])
+            error = list(keys - options[option] ) if list(keys - options[option] ) != [] else list(options[option] - keys)
             
             raise WrongKeyError({"wrong_keys_sent":error, "available_keys":list(options[option])})
+        elif not keys.issubset(options[option]):
+            error = list(keys - options[option] )
+            raise WrongKeyError({"Chaves_erradas":error, "Chaves Disponíveis":list(options[option])})
                     
     else:
         
