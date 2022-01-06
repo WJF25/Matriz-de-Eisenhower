@@ -6,7 +6,7 @@ from app.models.tasks_model import TaskModel
 from app.models.categories_model import CategoriesModel
 from app.models.eisenhowers_model import EisenhowerModel
 from app.models.tasks_categories_table import tasks_categories_table
-from sqlalchemy import and_
+from sqlalchemy import asc, desc
 
 
 def create_task():
@@ -138,12 +138,78 @@ def delete_task(task_id):
 
 def get_tasks():
     session = current_app.db.session
-    all_tasks = session.query(TaskModel).all()
-    resp = [dict(task) for task in all_tasks]
-    for task in resp:
+
+    param: dict = dict(request.args)
+
+    if param.get("order_by", None) == 'categories':
+        return jsonify({"error": "Impossible order by categories in tasks"}), 400
+    
+
+    if param:
+        q_options = {
+                "asc": asc(getattr(TaskModel, param.get('order_by', 'id'))),
+                "dsc": desc(getattr(TaskModel, param.get('order_by', 'id')))        
+            }
+        all_tasks = session.query(TaskModel).order_by(q_options.get(param.get('dir', 'asc'))).all()
+        resp = [dict(task) for task in all_tasks]
+        for task in resp:
+            option = limitation(task)
+            eisen = session.query(EisenhowerModel).filter_by(type=option).first()
+            tasky_id = tasks_categories_table.columns.get('task_id')
+            category_task = CategoriesModel.query.select_from(tasks_categories_table).join(CategoriesModel).filter(tasky_id == task['id']).all()
+            new_category = [dict(category) for category in category_task]
+            task['eisenhower_classification'] = eisen.type
+            task['categories'] = [category for category in new_category if category.pop('tasks', None)]
+        
+        return jsonify(resp), 200
+    else:
+        all_tasks = session.query(TaskModel).all()
+        resp = [dict(task) for task in all_tasks]
+        for task in resp:
+            option = limitation(task)
+            eisen = session.query(EisenhowerModel).filter_by(type=option).first()
+            tasky_id = tasks_categories_table.columns.get('task_id')
+            category_task = CategoriesModel.query.select_from(tasks_categories_table).join(CategoriesModel).filter(tasky_id == task['id']).all()
+            new_category = [dict(category) for category in category_task]
+            task['eisenhower_classification'] = eisen.type
+            task['categories'] = [category for category in new_category if category.pop('tasks', None)]
+        return jsonify(resp), 200
+
+
+def get_task_by_id(task_id):
+    session = current_app.db.session
+    task = session.query(TaskModel).get(task_id)
+    if task is None:
+        return jsonify({"error": "Task not found"}), 404
+
+    response = dict(task)
+    option = limitation(response)
+    eisen = session.query(EisenhowerModel).filter_by(type=option).first()
+    tasky_id = tasks_categories_table.columns.get('task_id')
+    category_task = CategoriesModel.query.select_from(tasks_categories_table).join(CategoriesModel).filter(tasky_id == task_id).all()
+    new_category = [dict(category) for category in category_task]
+    response['eisenhower_classification'] = eisen.type
+    response['categories'] = [category for category in new_category if category.pop('tasks', None)]
+    
+    return jsonify(response), 200
+
+
+def get_task_by_name_or_descrip(name_or_descrip):
+    session = current_app.db.session
+    param: dict = dict(request.args)
+    task = session.query(TaskModel).filter(getattr(TaskModel, name_or_descrip).ilike('%' + str(param.get('text')) + '%')).all()
+    if len(task) == 0:
+        return jsonify({"error": f"No such text found on {name_or_descrip}"}), 404
+
+    response = [dict(task) for task in task]
+    for task in response:
+        option = limitation(task)
+        eisen = session.query(EisenhowerModel).filter_by(type=option).first()
         tasky_id = tasks_categories_table.columns.get('task_id')
         category_task = CategoriesModel.query.select_from(tasks_categories_table).join(CategoriesModel).filter(tasky_id == task['id']).all()
         new_category = [dict(category) for category in category_task]
+        task['eisenhower_classification'] = eisen.type
         task['categories'] = [category for category in new_category if category.pop('tasks', None)]
+    return jsonify(response), 200
+
     
-    return jsonify(resp), 200
